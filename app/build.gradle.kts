@@ -14,7 +14,8 @@ android {
             version = "3.22.1"
         }
     }
-    sourceSets.getByName("main").assets.srcDir(project.layout.buildDirectory.dir("generated/rime-assets"))
+    // The workflow prepares the pinned Rime assets before invoking Gradle.
+    sourceSets.getByName("main").assets.srcDir("build/generated/rime-assets")
 
     defaultConfig {
         applicationId = "io.github.dakingeman.inlay"
