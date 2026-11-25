@@ -48,6 +48,7 @@ android {
         // and TourYourTurnTest switch it on)
         unitTests.all { it.systemProperty("inlay.checks.noTurns", "1"); it.systemProperty("inlay.checks.noSetup", "1") }
     }
+    testBuildType = "preview"
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
