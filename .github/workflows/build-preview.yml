@@ -25,7 +25,11 @@ jobs:
       - name: Install Android SDK packages
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-            'platforms;android-37.0' 'build-tools;36.0.0'
+            'platforms;android-37.0' 'build-tools;36.0.0' \
+            'ndk;27.2.12479018' 'cmake;3.22.1'
+
+      - name: Prepare offline Pinyin dependencies
+        run: python3 tools/prepare_rime.py
 
       - name: Build preview APK
         run: bash ./gradlew --no-daemon :app:assemblePreview

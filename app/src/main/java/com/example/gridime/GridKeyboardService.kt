@@ -137,10 +137,78 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
     // Word suggestions: one word list, for the language in use (loads in the background)
     private var suggester: WordSuggester? = null
     private val userWords by lazy { UserWords(this) }
+    private var pinyin = ""
+    private var pinyinCandidates = emptyList<PinyinCandidate>()
+    private var candidateOffset = 0
+    @Volatile private var pinyinRevision = 0
+
+    private fun pinyinEnabled(): Boolean {
+        val info = currentInputEditorInfo ?: return false
+        return settings.language == Language.CHINESE_PINYIN &&
+            (info.inputType and InputType.TYPE_MASK_CLASS) == InputType.TYPE_CLASS_TEXT &&
+            fieldKind(info) == FieldKind.TEXT && !isPassword()
+    }
+
+    private fun showPinyinCandidates() {
+        val end = candidateOffset + PINYIN_PAGE_SIZE
+        gridView?.setSuggestions(
+            pinyinCandidates.drop(candidateOffset).take(PINYIN_PAGE_SIZE).map { it.text },
+            "", (candidateOffset > 0) to (end < pinyinCandidates.size)
+        )
+    }
+
+    private fun resetPinyin() {
+        pinyin = ""
+        pinyinRevision++
+        pinyinCandidates = emptyList()
+        candidateOffset = 0
+        gridView?.setSuggestions(emptyList(), "")
+    }
+
+    private fun updatePinyin(spelling: String) {
+        val ic = currentInputConnection ?: return resetPinyin()
+        resetPinyin()
+        if (!ic.setComposingText(spelling, 1)) {
+            if (spelling.isNotEmpty()) ic.commitText(spelling, 1)
+            return
+        }
+        if (spelling.isEmpty()) {
+            ic.finishComposingText()
+            return
+        }
+        pinyin = spelling
+        val revision = pinyinRevision
+        PinyinDecoder.request(this, spelling, { pinyinRevision == revision }) { candidates ->
+            handler.post {
+                if (pinyinRevision == revision) {
+                    pinyinCandidates = candidates
+                    showPinyinCandidates()
+                }
+            }
+        }
+    }
+
+    /** Resolve the entire reading before leaving composition. A partial candidate never loses its suffix. */
+    private fun finishPinyin(preferChinese: Boolean = true): Boolean {
+        if (pinyin.isEmpty()) return false
+        val text = if (preferChinese) pinyinCandidates.firstOrNull { it.consumed == pinyin.length }?.text else null
+        currentInputConnection?.let { ic ->
+            if (text != null) ic.commitText(text, 1) else ic.finishComposingText()
+        }
+        resetPinyin()
+        return true
+    }
+
+    private fun deletePinyin(): Boolean {
+        if (pinyin.isEmpty()) return false
+        updatePinyin(pinyin.dropLast(1))
+        return true
+    }
 
     /** May this box teach Inlay words? Not for passwords, web addresses, email, numbers, or apps that ask not to. */
     private fun mayLearn(): Boolean {
         val info = currentInputEditorInfo ?: return false
+        if (settings.language == Language.CHINESE_PINYIN) return false
         if (!settings.learnWords || isPassword() || fieldKind(info) != FieldKind.TEXT) return false
         if ((info.inputType and InputType.TYPE_MASK_CLASS) != InputType.TYPE_CLASS_TEXT) return false
         return (info.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) == 0
@@ -172,7 +240,7 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
     }
 
     private fun suggesterFor(language: Language): WordSuggester? {
-        if (!settings.wordSuggestions) return null
+        if (!settings.wordSuggestions || language == Language.CHINESE_PINYIN) return null
         suggester?.takeIf { it.language == language }?.let { return it }
         return WordSuggester(this, language) { scheduleAppSync(previewOnly = true) }.also { suggester = it }
     }
@@ -192,6 +260,7 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
     }
 
     override fun onDestroy() {
+        resetPinyin()
         clipboard?.removePrimaryClipChangedListener(clipListener)
         displays?.unregisterDisplayListener(displayListener)
         handler.removeCallbacksAndMessages(null)
@@ -256,6 +325,7 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        if (pinyin.isNotEmpty()) resetPinyin()
         updateFullscreenMode()                      // re-check full-screen for every new text box
         setExtractViewShown(false)
         // Pick up anything changed in the Settings app
@@ -265,6 +335,7 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
         settings.languageFor(info?.packageName)?.let { i ->
             if (i != settings.activeLanguage) { settings = settings.copy(activeLanguage = i); settings.save(this) }
         }
+        if (pinyinEnabled()) PinyinDecoder.warm(this)
         feedback.update(settings)
         history.reload()
         userWords.save(); userWords.reload()
@@ -309,6 +380,7 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
+        finishPinyin(preferChinese = false)
         super.onFinishInputView(finishingInput)
         userWords.save()
         resetHeldInputs()
@@ -416,6 +488,8 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         selStart = newSelStart
         selEnd = newSelEnd
+        if (pinyin.isNotEmpty() && candidatesStart >= 0 &&
+            (newSelStart != candidatesEnd || newSelEnd != candidatesEnd)) finishPinyin(preferChinese = false)
         if (selecting) {
             gridView?.setSelecting(true, abs(selEnd - selStart))
             scheduleAppSync(previewOnly = true)
@@ -451,6 +525,11 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
      */
     private fun refreshSuggestions() {
         val grid = gridView ?: return
+        if (settings.language == Language.CHINESE_PINYIN) {
+            grid.accentReady = false
+            if (pinyin.isEmpty()) grid.setSuggestions(emptyList(), "")
+            return
+        }
         // The RT chips offer Accent only when it would do something: a letter with accents just before the cursor
         // (in boxes that don't share their text, it never can; victorcoe saw it offered there, 4 Nov 2026).
         // One question to the app, shared with the suggestions below (see SPEED above)
@@ -489,6 +568,20 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
     // ACTIONS FROM THE KEY GRID (sound and vibration are played by the grid)
     // =====================================================================
     override fun onText(text: String) {
+        if (pinyinEnabled()) {
+            val letter = text.singleOrNull()?.lowercaseChar()
+            if (letter != null && (letter in 'a'..'z' || letter == '\'' && pinyin.lastOrNull()?.isLetter() == true)) {
+                if (selecting) exitSelectMode(collapse = false)
+                if (pinyin.length == MAX_PINYIN_LENGTH) finishPinyin()
+                updatePinyin(pinyin + letter)
+                return
+            }
+            if (finishPinyin() && text == " ") return
+            if (selecting) exitSelectMode(collapse = false)
+            currentInputConnection?.commitText(text, 1)
+            scheduleAppSync()
+            return
+        }
         if (text == " " && tryDoubleSpacePeriod()) return
         if (selecting) exitSelectMode(collapse = false)
         // A word just ended: learn it, and turn a lone "i" into "I"
@@ -528,12 +621,14 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
     }
 
     override fun onDelete() {
+        if (deletePinyin()) return
         sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
         if (selecting) exitSelectMode(collapse = false)
         scheduleAppSync()
     }
 
     override fun onEnter() {
+        if (finishPinyin()) return
         val options = currentInputEditorInfo?.imeOptions ?: 0
         val action = options and EditorInfo.IME_MASK_ACTION
         val actionAllowed = (options and EditorInfo.IME_FLAG_NO_ENTER_ACTION) == 0
@@ -548,6 +643,14 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
     override fun onTool(tool: Tool) {
         val ic = currentInputConnection ?: return
         when (tool) {
+            Tool.PREVIOUS_CANDIDATES, Tool.NEXT_CANDIDATES -> {
+                val offset = candidateOffset + if (tool == Tool.NEXT_CANDIDATES) PINYIN_PAGE_SIZE else -PINYIN_PAGE_SIZE
+                if (offset in pinyinCandidates.indices) {
+                    candidateOffset = offset
+                    feedback.move()
+                    showPinyinCandidates()
+                }
+            }
             Tool.SELECT -> toggleSelectMode()
             Tool.SELECT_ALL -> selectAll()
             Tool.COPY -> {
@@ -582,6 +685,19 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
 
     override fun onWord(word: String) {
         val ic = currentInputConnection ?: return
+        if (settings.language == Language.CHINESE_PINYIN) {
+            val candidate = pinyinCandidates.firstOrNull { it.text == word } ?: return
+            val rest = pinyin.drop(candidate.consumed).trimStart('\'')
+            resetPinyin()
+            ic.beginBatchEdit()
+            try {
+                if (ic.commitText(candidate.text, 1) && rest.isNotEmpty()) updatePinyin(rest)
+            } finally {
+                ic.endBatchEdit()
+            }
+            scheduleAppSync()
+            return
+        }
         if (mayLearn()) userWords.learn(settings.language, word, box)     // picked on purpose: counts straight away
         val typed = wordBeforeCursor()
         ic.beginBatchEdit()
@@ -593,6 +709,7 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
     }
 
     override fun onReplaceLast(expected: String, replacement: String): Boolean {
+        if (pinyinEnabled()) return false
         val ic = currentInputConnection ?: return false
         if (ic.getTextBeforeCursor(expected.length, 0)?.toString() != expected) return false
         ic.beginBatchEdit()
@@ -605,6 +722,7 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
 
     override fun onClip(index: Int) {
         val text = history.all.getOrNull(index) ?: return
+        finishPinyin()
         if (selecting) exitSelectMode(collapse = false)
         currentInputConnection?.commitText(text, 1)
         scheduleAppSync()
@@ -648,6 +766,10 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
             intervalFor = { n -> if (n < DELETE_WORDS_AFTER) max(DELETE_FASTEST_MS, DELETE_START_MS - n * 7L) else DELETE_WORD_MS }
         ) { n ->
             val ic = currentInputConnection ?: return@start
+            if (deletePinyin()) {
+                if (n == 0) feedback.delete() else feedback.deleteRepeat()
+                return@start
+            }
             val hasSelection = selStart != selEnd
             when {
                 n == 0 || hasSelection || n < DELETE_WORDS_AFTER -> {
@@ -669,6 +791,7 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
      * forms (e → é → è → ê …), so accents never need a touch screen.
      */
     private fun cycleAccent() {
+        if (pinyinEnabled()) return feedback.off()
         val ic = currentInputConnection ?: return
         if (selStart != selEnd) return feedback.off()
         val before = ic.getTextBeforeCursor(1, 0)
@@ -685,6 +808,7 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
     }
 
     private fun undo() {
+        if (pinyin.isNotEmpty()) { updatePinyin(""); return }
         currentInputConnection?.let { TextOps.undo(it) }
         feedback.off()
         scheduleAppSync()
@@ -717,7 +841,7 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
         val grid = gridView ?: return
         val ic = currentInputConnection ?: return
         val inputType = currentInputEditorInfo?.inputType ?: 0
-        if (!settings.autoCaps) { grid.setAutoShift(false); return }
+        if (!settings.autoCaps || pinyinEnabled()) { grid.setAutoShift(false); return }
         val caps = if (inputType != 0) ic.getCursorCapsMode(inputType) else 0
         grid.setAutoShift(caps != 0 || sentenceEnded(ic, inputType))
     }
@@ -727,6 +851,7 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
     // =====================================================================
     /** Select: one press = select mode on/off, two quick presses = select all. */
     private fun onSelectButton() {
+        finishPinyin()
         val now = SystemClock.uptimeMillis()
         if (now - lastSelectPress < DOUBLE_PRESS_MS) {
             lastSelectPress = 0L
@@ -772,6 +897,7 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
 
     /** Moves the text cursor one step. Returns false at the start or end of the text, where it stays put. */
     private fun moveCursor(dir: Int): Boolean {
+        finishPinyin()
         val ic = currentInputConnection ?: return false
         if (selecting) {
             movingEnd = (movingEnd + dir).coerceIn(0, TextOps.textLength(ic, selStart, selEnd))
@@ -799,6 +925,7 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
 
     /** R2 + L1 / R1: jump (or select) a whole word. */
     private fun jumpWord(dir: Int) {
+        finishPinyin()
         val ic = currentInputConnection ?: return
         val (text, offset) = TextOps.textAround(ic, selStart, selEnd)
         val from = when {
@@ -925,6 +1052,10 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
                 if (grid.isAccentsOpen()) {
                     grid.cancelAccents()                         // back to the plain letter
                     bConsumed = true
+                } else if (pinyin.isNotEmpty()) {
+                    updatePinyin("")
+                    feedback.back()
+                    bConsumed = true
                 } else if (selecting || grid.isClipsOpen()) {
                     if (grid.isClipsOpen()) grid.closeClips(focusOnHistoryButton = true)
                     else exitSelectMode(collapse = true)
@@ -1045,12 +1176,15 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
 
     /** RT + LT: the next language in the quick switch. Saved, so it stays after closing. */
     private fun switchLanguage() {
+        finishPinyin()
         settings = KeyboardSettings.load(this).nextLanguage().rememberLanguage(currentInputEditorInfo?.packageName)
         settings.save(this)
         gridView?.apply {
             applySettings(settings.forControls(Controls.of(this@GridKeyboardService, settings)))
             flashLanguage()
         }
+        if (pinyinEnabled()) PinyinDecoder.warm(this)
+        scheduleAppSync()
         feedback.on()
     }
 
@@ -1213,6 +1347,7 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
     }
 
     private fun rightStep() {
+        finishPinyin()
         val ic = currentInputConnection ?: return
         // Up and down in a multi-line box: at the very start or end, the app would move its focus away
         if (rightDx == 0 && !selecting && multiLine() && atTextEdge(rightDy)) return
@@ -1323,6 +1458,8 @@ class GridKeyboardService : InputMethodService(), KeyGridView.Listener {
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_BACK
         )
 
+        private const val PINYIN_PAGE_SIZE = 3
+        private const val MAX_PINYIN_LENGTH = 64
         /** Word suggestions: how far back to look for the word being typed. */
         const val WORD_LOOKBACK = 40
         val WORD_END = Regex("""[\p{L}'’]+$""")

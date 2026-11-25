@@ -3,7 +3,7 @@ package com.example.gridime
 /** DIGIT = a key on the optional number row. GAP = an empty word slot in the tool strip (never focused). */
 enum class KeyType { CHAR, SHIFT, LAYER, SPACE, ENTER, DELETE, TOOL, CLIP, EMPTY, DIGIT, GAP }
 enum class ShiftState { OFF, ONCE, LOCK }
-enum class Tool { SELECT, SELECT_ALL, CUT, COPY, PASTE, HISTORY, SETTINGS, WORD, VOICE }
+enum class Tool { SELECT, SELECT_ALL, CUT, COPY, PASTE, HISTORY, SETTINGS, WORD, VOICE, PREVIOUS_CANDIDATES, NEXT_CANDIDATES }
 enum class Layer { LETTERS, SYMBOLS, CLIPS, NUMPAD }
 
 /**
@@ -42,6 +42,17 @@ object Layouts {
     const val MAX_CLIP_CARDS = 6      // 3 rows of 2; the 4th row holds the button guide
 
     private fun chars(s: String, weight: Float = 1f) = s.map { Key(KeyType.CHAR, it.toString(), weight) }
+
+    fun pinyinRow(words: List<String>, previous: Boolean, next: Boolean, split: Boolean): List<Key> {
+        fun arrow(enabled: Boolean, label: String, tool: Tool) =
+            if (enabled) Key(KeyType.TOOL, label, tool = tool) else Key(KeyType.GAP)
+        val slots = if (split) listOf(2f, 2f, 4f) else List(3) { (UNITS - 2f) / 3f }
+        return listOf(arrow(previous, "‹", Tool.PREVIOUS_CANDIDATES)) + slots.mapIndexed { i, weight ->
+            val word = words.getOrNull(i)
+            if (word == null) Key(KeyType.GAP, weight = weight)
+            else Key(KeyType.TOOL, word, weight, Tool.WORD, if (i == 0) ControllerButton.R3 else null, best = i == 0)
+        } + arrow(next, "›", Tool.NEXT_CANDIDATES)
+    }
 
     /**
      * The tool strip. While a word is being typed, [words] (most likely first) take the place

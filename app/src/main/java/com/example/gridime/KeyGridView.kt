@@ -128,7 +128,11 @@ class KeyGridView(context: Context) : View(context) {
     val voiceAvailable get() = settings.voiceKey
     /** Checks: the top row's tools, left to right (the preview must match the real keyboard). */
     internal fun toolsForCheck(): List<Tool?> = toolRow.map { it.tool }
-    private val toolRow: List<Key> get() = Layouts.toolRow(settings.selectAllButton, if (showWords) words else emptyList(), splitOn, voiceAvailable)
+    private val toolRow: List<Key> get() {
+        val paging = pinyinPaging
+        if (showWords && paging != null) return Layouts.pinyinRow(words, paging.first, paging.second, splitOn)
+        return Layouts.toolRow(settings.selectAllButton, if (showWords) words else emptyList(), splitOn, voiceAvailable)
+    }
     private var letterRows = Layouts.letterRows(KeyLayout.GRID)
     private var symbolRows = Layouts.symbolRows(KeyLayout.GRID)
 
@@ -316,19 +320,22 @@ class KeyGridView(context: Context) : View(context) {
 
     private var words: List<String> = emptyList()
     private var wordPrefix = ""
+    private var pinyinPaging: Pair<Boolean, Boolean>? = null
     /** Words only on the letters page and never in select mode (Cut and Copy matter then). */
-    private val showWords get() = words.isNotEmpty() && layer == Layer.LETTERS && !selecting && settings.wordSuggestions
+    private val showWords get() = words.isNotEmpty() && layer == Layer.LETTERS && !selecting &&
+        (pinyinPaging != null || settings.wordSuggestions)
     private var stripFade = 1f
     private var stripAnim: ValueAnimator? = null
 
     /** Called by the service when typing pauses: [list] most likely first, [prefix] = the word being typed. */
-    fun setSuggestions(list: List<String>, prefix: String) {
-        if (list == words && prefix == wordPrefix) return
+    fun setSuggestions(list: List<String>, prefix: String, paging: Pair<Boolean, Boolean>? = null) {
+        if (list == words && prefix == wordPrefix && paging == pinyinPaging) return
         val before = showWords
         if (list != words) wordsSince = android.os.SystemClock.uptimeMillis()
         keepStripFocus {
             words = list
             wordPrefix = prefix
+            pinyinPaging = paging
         }
         if (before != showWords) fadeStripIn()
         invalidate()

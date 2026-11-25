@@ -7,6 +7,14 @@ android {
     compileSdk {
         version = release(37)
     }
+    ndkVersion = "27.2.12479018"
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+    sourceSets.getByName("main").assets.srcDir(project.layout.buildDirectory.dir("generated/rime-assets"))
 
     defaultConfig {
         applicationId = "io.github.dakingeman.inlay"
@@ -16,6 +24,7 @@ android {
         versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
 
     buildTypes {
