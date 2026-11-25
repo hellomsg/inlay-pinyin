@@ -18,7 +18,7 @@ android {
     sourceSets.getByName("main").assets.srcDir("build/generated/rime-assets")
 
     defaultConfig {
-        applicationId = "io.github.dakingeman.inlay"
+        applicationId = "io.github.dakingeman.inlay.pinyin"
         minSdk = 29
         targetSdk = 37
         versionCode = 6
@@ -34,11 +34,9 @@ android {
                 enable = false
             }
         }
-        // Test builds: "Inlay Preview" installs next to the real Inlay as a separate app,
-        // with its own settings. The release build and its app ID are untouched.
+        // Cloud preview builds use the fork's application ID and the preview artwork.
         create("preview") {
             initWith(getByName("debug"))
-            applicationIdSuffix = ".preview"
             versionNameSuffix = "-preview"
             matchingFallbacks += listOf("debug")
         }

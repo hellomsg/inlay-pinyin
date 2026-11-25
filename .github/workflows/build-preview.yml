@@ -1,4 +1,4 @@
-name: Build Inlay Preview APK
+name: Build Inlay Pinyin APK
 
 on:
   push:
@@ -50,7 +50,7 @@ jobs:
 
       - uses: actions/upload-artifact@v6
         with:
-          name: inlay-preview-apk
+          name: inlay-pinyin-apk
           path: app/build/outputs/apk/preview/*.apk
           if-no-files-found: error
 

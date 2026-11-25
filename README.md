@@ -1,5 +1,7 @@
 <h1 align="center">Inlay: a keyboard for your game controller on Android</h1>
 
+**Inlay Pinyin** is a fork of [Inlay by Emre (dakingeman)](https://github.com/dakingeman/inlay) with offline Simplified Chinese Pinyin. [Download a preview from GitHub Actions](https://github.com/hellomsg/inlay/actions). In Android's input-method picker, choose **Inlay Pinyin 键盘**.
+
 <p align="center">
   <picture>
     <source media="(prefers-reduced-motion: reduce)" srcset="docs/images/hero-locked.png">
