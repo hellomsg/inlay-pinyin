@@ -10,9 +10,10 @@ import java.util.concurrent.TimeUnit
 class PinyinDecoderTest {
     @Test
     fun bundledDictionaryReturnsSimplifiedPhrasesOnFirstUse() {
-        assertTrue(decode("nihao").contains(PinyinCandidate("你好", 5)))
-        assertTrue(decode("youxi").contains(PinyinCandidate("游戏", 5)))
-        assertTrue(decode("zhongwen").contains(PinyinCandidate("中文", 8)))
+        for ((spelling, expected) in listOf("nihao" to "你好", "youxi" to "游戏", "zhongwen" to "中文")) {
+            val candidates = decode(spelling)
+            assertTrue("$spelling should include $expected, got $candidates", PinyinCandidate(expected, spelling.length) in candidates)
+        }
     }
 
     private fun decode(spelling: String): List<PinyinCandidate> {
