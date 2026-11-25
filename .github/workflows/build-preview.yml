@@ -32,7 +32,16 @@ jobs:
         run: python3 tools/prepare_rime.py
 
       - name: Build preview APK
-        run: bash ./gradlew --no-daemon :app:assemblePreview
+        run: |
+          if ! bash ./gradlew --no-daemon :app:assemblePreview > "$RUNNER_TEMP/gradle-preview.log" 2>&1; then
+            tail -n 150 "$RUNNER_TEMP/gradle-preview.log"
+            grep -E 'CMake Error|(^|[[:space:]])(error:|e:)|^> ' "$RUNNER_TEMP/gradle-preview.log" |
+              head -n 12 | while IFS= read -r line; do
+                printf '::error::%s\n' "${line//%/%25}"
+              done
+            exit 1
+          fi
+          tail -n 15 "$RUNNER_TEMP/gradle-preview.log"
 
       - uses: actions/upload-artifact@v6
         with:

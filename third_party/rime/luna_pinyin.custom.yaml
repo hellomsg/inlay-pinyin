@@ -1,3 +1,8 @@
 patch:
   translator/enable_user_dict: false
   schema/dependencies: []
+  engine/translators:
+    - script_translator
+  engine/filters:
+    - simplifier@zh_hans
+    - uniquifier

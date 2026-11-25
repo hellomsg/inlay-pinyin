@@ -44,7 +44,7 @@ Java_com_example_gridime_RimeNative_initialize(JNIEnv* env, jobject, jstring sha
         if (api->start_maintenance(false)) api->join_maintenance_thread();
         session = api->create_session();
         if (session && api->select_schema(session, schema)) {
-            api->set_option(session, "simplification", true);
+            api->set_option(session, "zh_hans", true);
             api->set_option(session, "ascii_mode", false);
             return JNI_TRUE;
         }
