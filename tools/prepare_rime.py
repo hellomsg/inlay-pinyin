@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 META = ROOT / 'third_party/rime'
 CACHE = ROOT / '.tools/native-sources'
 ASSETS = ROOT / 'app/build/generated/rime-assets/rime'
-REFERENCE = 'https://raw.githubusercontent.com/poi890poi/minime/efe9186e886034272bf4266310f0064cdcbeaa5a/third_party/rime/data-sources/'
+REFERENCE = 'https://raw.githubusercontent.com/poi890poi/minime/efe9186e886034272bf4266310f0064cdcbeaa5a/app/src/main/rimeAssets/rime/'
 
 
 def archive_for(source, url):
@@ -53,16 +53,12 @@ for source in entries('native-sources.json'):
             bundle.extractall(CACHE, members=selected, filter='data')
     stamp.write_text(source['sha256'])
 
-ASSETS.mkdir(parents=True, exist_ok=True)
-for source in entries('data-sources.json'):
-    with zipfile.ZipFile(archive_for(source, REFERENCE + source['archive'])) as bundle:
-        for entry in bundle.namelist():
-            name = Path(entry).name
-            if name.endswith(('.yaml', '.txt')) and name not in {'README.txt', 'LICENSE.txt'}:
-                (ASSETS / name).write_bytes(bundle.read(entry))
-
-shutil.copyfile(META / 'default.yaml', ASSETS / 'default.yaml')
-shutil.copyfile(META / 'luna_pinyin.custom.yaml', ASSETS / 'luna_pinyin.custom.yaml')
+if ASSETS.exists():
+    shutil.rmtree(ASSETS)
+ASSETS.mkdir(parents=True)
+for name, digest in entries('model.json')['assets'].items():
+    model = {'archive': name, 'name': name, 'sha256': digest}
+    shutil.copyfile(archive_for(model, REFERENCE + name), ASSETS / name)
 opencc = ASSETS / 'opencc'
 opencc.mkdir(exist_ok=True)
 source = next(source for source in entries('native-sources.json') if source['name'] == 'opencc')

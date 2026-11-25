@@ -46,7 +46,6 @@ internal object PinyinDecoder {
             val user = File(base, "user")
             copyAssets(context, "rime", shared)
             if (!user.isDirectory && !user.mkdirs()) throw IOException("Cannot create Rime data directory")
-            File(shared, "luna_pinyin.custom.yaml").copyTo(File(user, "luna_pinyin.custom.yaml"), overwrite = true)
             RimeNative.initialize(shared.path, user.path).also {
                 if (!it) android.util.Log.e("InlayPinyin", "Rime could not open its Pinyin schema")
             }

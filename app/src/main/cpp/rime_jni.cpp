@@ -1,4 +1,6 @@
 #include <jni.h>
+#include <opencc/Config.hpp>
+#include <opencc/Converter.hpp>
 #include <rime_api.h>
 #include <rime/candidate.h>
 #include <rime/composition.h>
@@ -13,6 +15,7 @@
 namespace {
 constexpr char schema[] = "luna_pinyin";
 RimeSessionId session = 0;
+opencc::ConverterPtr simplified;
 
 std::string readString(JNIEnv* env, jstring value) {
     const char* chars = env->GetStringUTFChars(value, nullptr);
@@ -30,9 +33,11 @@ Java_com_example_gridime_RimeNative_initialize(JNIEnv* env, jobject, jstring sha
     try {
         const auto sharedPath = readString(env, shared);
         const auto userPath = readString(env, user);
+        simplified = opencc::Config().NewFromFile(sharedPath + "/opencc/t2s.json");
         RIME_STRUCT(RimeTraits, traits);
         traits.shared_data_dir = sharedPath.c_str();
         traits.user_data_dir = userPath.c_str();
+        traits.prebuilt_data_dir = sharedPath.c_str();
         traits.app_name = "rime.inlay";
         traits.distribution_name = "Inlay";
         traits.distribution_code_name = "inlay";
@@ -41,10 +46,8 @@ Java_com_example_gridime_RimeNative_initialize(JNIEnv* env, jobject, jstring sha
         auto* api = rime_get_api();
         api->setup(&traits);
         api->initialize(&traits);
-        if (api->start_maintenance(false)) api->join_maintenance_thread();
         session = api->create_session();
         if (session && api->select_schema(session, schema)) {
-            api->set_option(session, "zh_hans", true);
             api->set_option(session, "ascii_mode", false);
             return JNI_TRUE;
         }
@@ -74,7 +77,7 @@ Java_com_example_gridime_RimeNative_candidates(JNIEnv* env, jobject, jstring spe
                     auto candidate = menu->GetCandidateAt(i);
                     if (!candidate) break;
                     if (candidate->start() != 0 || candidate->end() == 0 || candidate->end() > raw.size()) continue;
-                    const auto text = candidate->text();
+                    const auto text = simplified->Convert(candidate->text());
                     if (!text.empty()) records.push_back(std::to_string(candidate->end()) + "\t" + text);
                 }
             }

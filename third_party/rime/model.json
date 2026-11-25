@@ -1,0 +1,11 @@
+{
+  "librime": "1.16.1",
+  "bundle": "145b3f69c8be5be50929587e5dede33300385ddf22aa326f840d12972128fb94",
+  "assets": {
+    "default.yaml": "c40862c0581b5fe13045bab6b79286bcb78bb63aea872d7ecb04d98937315977",
+    "luna_pinyin.prism.bin": "acb7a8ea3b973cb9e5cabf43589956ac01f02c0738f0047101b65d3c543477e7",
+    "luna_pinyin.reverse.bin": "bd314158c00bf36c9ba8f7321d7e6ab6dfbdaa283b11c4856adfd2f58a781179",
+    "luna_pinyin.schema.yaml": "8625ef380b0c97394a65ededd77823c9f8bd99cec1dd4b60a06a9d325ddb8e8e",
+    "luna_pinyin.table.bin": "55a54e8e55deaade0e4d7646a7ad2b8602901f4007b60c637d993468eff64e03"
+  }
+}
