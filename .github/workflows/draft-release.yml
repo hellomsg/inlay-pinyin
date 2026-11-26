@@ -27,13 +27,19 @@ jobs:
           java-version: '17'
           cache: gradle
 
-      - name: Validate release tag
+      - name: Validate release tag and changelog
         env:
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           version=$(sed -n 's/^ *versionName = "\([^"]*\)"$/\1/p' app/build.gradle.kts)
           if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ || "$RELEASE_TAG" != "v$version" ]]; then
             echo 'Release tag must match versionName, prefixed with v.' >&2
+            exit 1
+          fi
+          notes="$RUNNER_TEMP/inlay-release-notes.md"
+          awk -v version="$version" '/^## / { if (active) exit; active = ($2 == version); next } active { print }' CHANGELOG.md > "$notes"
+          if ! grep -q '^-' "$notes"; then
+            printf 'Add a changelog heading "## %s" followed by release notes.\n' "$version" >&2
             exit 1
           fi
 
@@ -64,12 +70,6 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           notes="$RUNNER_TEMP/inlay-release-notes.md"
-          version="${RELEASE_TAG#v}"
-          awk -v version="$version" '/^## / { if (active) exit; active = ($2 == version); next } active { print }' CHANGELOG.md > "$notes"
-          if ! grep -q '^-' "$notes"; then
-            echo 'Add a changelog entry for this release.' >&2
-            exit 1
-          fi
           cat >> "$notes" <<EOF_NOTES
 
           - Install the APK and enable **Inlay Pinyin 键盘** in Android settings. Preview APKs signed with a different certificate must be removed before installing this build. Export settings first if you want to restore them.
