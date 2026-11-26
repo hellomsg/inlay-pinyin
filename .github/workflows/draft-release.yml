@@ -1,0 +1,80 @@
+name: Draft Inlay Pinyin Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag matching the Android versionName (for example v0.1.0)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Validate release tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          version=$(sed -n 's/^ *versionName = "\([^"]*\)"$/\1/p' app/build.gradle.kts)
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ || "$RELEASE_TAG" != "v$version" ]]; then
+            echo 'Release tag must match versionName, prefixed with v.' >&2
+            exit 1
+          fi
+
+      - name: Install Android SDK packages
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            'platforms;android-37.0' 'build-tools;36.0.0' \
+            'ndk;27.2.12479018' 'cmake;3.22.1'
+
+      - name: Prepare offline Pinyin dependencies
+        run: python3 tools/prepare_rime.py
+
+      - name: Build release APK
+        run: bash ./gradlew --no-daemon :app:assembleRelease
+
+      - name: Sign and verify release APK
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_KEYSTORE: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: bash tools/sign_release_apk.sh "$RELEASE_TAG"
+
+      - name: Create release draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          notes="$RUNNER_TEMP/inlay-release-notes.md"
+          version="${RELEASE_TAG#v}"
+          awk -v version="$version" '/^## / { if (active) exit; active = ($2 == version); next } active { print }' CHANGELOG.md > "$notes"
+          if ! grep -q '^-' "$notes"; then
+            echo 'Add a changelog entry for this release.' >&2
+            exit 1
+          fi
+          cat >> "$notes" <<EOF_NOTES
+
+          - Install the APK and enable **Inlay Pinyin 键盘** in Android settings. Preview APKs signed with a different certificate must be removed before installing this build. Export settings first if you want to restore them.
+          - [Corresponding source](https://github.com/$GITHUB_REPOSITORY/tree/$GITHUB_SHA) · [Build instructions](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/docs/RELEASING.md) · [Third-party notices](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/third_party/rime/NOTICES.txt)
+          EOF_NOTES
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --draft --prerelease --title "Inlay Pinyin $RELEASE_TAG" --notes-file "$notes" \
+            dist/*.apk dist/SHA256SUMS dist/signing-certificate.txt dist/LICENSE

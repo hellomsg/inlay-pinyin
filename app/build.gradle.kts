@@ -21,8 +21,8 @@ android {
         applicationId = "io.github.dakingeman.inlay.pinyin"
         minSdk = 29
         targetSdk = 37
-        versionCode = 6
-        versionName = "1.3.0"
+        versionCode = 7
+        versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }

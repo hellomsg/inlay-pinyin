@@ -17,8 +17,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: Inlay version
-      description: Open Inlay, then About. The number is at the top.
+      label: Inlay Pinyin version
+      description: Open Inlay Pinyin, then About, and check Version.
   - type: textarea
     id: what
     attributes:

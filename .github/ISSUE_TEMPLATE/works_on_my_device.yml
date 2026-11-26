@@ -16,4 +16,4 @@ body:
     id: notes
     attributes:
       label: Anything odd or missing?
-      description: Everything fine? Just say so.
+      description: Include the Inlay Pinyin version and whether you tried controller and touch candidate selection.

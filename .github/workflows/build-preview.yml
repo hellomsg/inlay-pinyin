@@ -3,7 +3,11 @@ name: Build Inlay Pinyin APK
 on:
   push:
     branches:
-      - codex/inlay-cloud-build
+      - main
+      - codex/project-setup
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -48,12 +52,6 @@ jobs:
           fi
           tail -n 15 "$RUNNER_TEMP/gradle-preview.log"
 
-      - uses: actions/upload-artifact@v6
-        with:
-          name: inlay-pinyin-apk
-          path: app/build/outputs/apk/preview/*.apk
-          if-no-files-found: error
-
       - name: Enable emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -66,3 +64,9 @@ jobs:
           api-level: 34
           arch: x86_64
           script: bash tools/test_preview_pinyin.sh
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: inlay-pinyin-preview-apk
+          path: app/build/outputs/apk/preview/*.apk
+          if-no-files-found: error
