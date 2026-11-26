@@ -1308,19 +1308,20 @@ class SetupRow(
     context: Context,
     enabled: Boolean,
     private val onAct: () -> Unit
-) : SettingRow(context, "Set up Inlay", "Two quick steps to type with your controller anywhere", stacked = true) {
+) : SettingRow(context, "Set up ${context.getString(R.string.app_name)}", "Two quick steps to type with your controller anywhere", stacked = true) {
 
     init {
+        val appName = context.getString(R.string.app_name)
         val body = LinearLayout(context).apply {
             orientation = VERTICAL
-            addView(step(1, "Turn on Inlay",
-                if (enabled) "Done" else "Switch Inlay on in the list that opens",
+            addView(step(1, "Turn on $appName",
+                if (enabled) "Done" else "Switch $appName on in the list that opens",
                 done = enabled, current = !enabled), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-            addView(step(2, "Make it your keyboard", "Pick Inlay in the list that opens",
+            addView(step(2, "Make it your keyboard", "Pick ${context.getString(R.string.ime_name)} in the list that opens",
                 done = false, current = enabled), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
                 .apply { topMargin = px(Design.SPACE_M) })
             addView(AccentButton(context).apply {
-                text = if (enabled) "Choose Inlay" else "Turn on Inlay"
+                text = if (enabled) "Choose $appName" else "Turn on $appName"
                 textSize = Design.TYPE_ROW
                 typeface = SettingsStyle.medium
                 gravity = Gravity.CENTER

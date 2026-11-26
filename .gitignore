@@ -2,6 +2,7 @@
 .gradle/
 /local.properties
 /.idea/
+/.tools/
 .DS_Store
 /build/
 /app/build/

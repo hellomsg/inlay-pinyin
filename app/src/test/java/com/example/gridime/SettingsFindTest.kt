@@ -62,7 +62,7 @@ class SettingsFindTest {
         val index = a.findIndex()
         val cases = listOf("bigger" to "Keyboard size", "transparent" to "Theme", "numbers" to "Number row", "r3" to "Take the first suggested word",
             "clipboard" to "Remember copied text", "haptics" to "Vibration", "nintendo" to "Your buttons", "split" to "Split",
-            "accents" to "Hold for accents", "obtainium" to "Get updates automatically", "test" to "Try your buttons",
+            "accents" to "Hold for accents", "updates" to "Preview builds", "test" to "Try your buttons",
             // slips and whole questions
             "vibraton" to "Vibration", "keybord size" to "Keyboard size", "how do i make the keys bigger" to "Keyboard size",
             "transparant" to "Theme", "where is the number row" to "Number row")

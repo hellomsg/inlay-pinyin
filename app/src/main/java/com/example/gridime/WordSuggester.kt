@@ -88,6 +88,7 @@ class WordSuggester(context: Context, val language: Language, onReady: () -> Uni
             Language.TURKISH -> R.raw.words_tr
             Language.RUSSIAN -> R.raw.words_ru
             Language.UKRAINIAN -> R.raw.words_uk
+            Language.CHINESE_PINYIN -> 0
         }
     }
 }

@@ -48,7 +48,9 @@ enum class Language(
     RUSSIAN("Русский", listOf("йцукенгшщзхъ", "фывапролджэё", "ячсмитьбю"),
         locale = Locale.forLanguageTag("ru"), lettersKey = "АБВ", currency = "₽", accentFirst = "ё"),
     UKRAINIAN("Українська", listOf("йцукенгшщзхї", "фівапролджєґ", "ячсмитьбю"),
-        locale = Locale.forLanguageTag("uk"), lettersKey = "АБВ", currency = "₴", accentFirst = "ґ");
+        locale = Locale.forLanguageTag("uk"), lettersKey = "АБВ", currency = "₴", accentFirst = "ґ"),
+    CHINESE_PINYIN("简体中文 · 全拼", listOf("qwertyuiop", "asdfghjkl'", "zxcvbnm"),
+        classicRow2 = "asdfghjkl", locale = Locale.SIMPLIFIED_CHINESE, currency = "¥", shortName = "中");
 
     /** On a small space bar: "EN", "DE", "SV · FI"... (the whole name when it fits: KeyGridView picks). */
     val short: String get() = shortName ?: locale.language.uppercase(Locale.ROOT)

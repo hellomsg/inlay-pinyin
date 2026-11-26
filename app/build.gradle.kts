@@ -7,15 +7,25 @@ android {
     compileSdk {
         version = release(37)
     }
+    ndkVersion = "27.2.12479018"
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+    // The workflow prepares the pinned Rime assets before invoking Gradle.
+    sourceSets.getByName("main").assets.srcDir("build/generated/rime-assets")
 
     defaultConfig {
-        applicationId = "io.github.dakingeman.inlay"
+        applicationId = "io.github.dakingeman.inlay.pinyin"
         minSdk = 29
         targetSdk = 37
-        versionCode = 6
-        versionName = "1.3.0"
+        versionCode = 7
+        versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
 
     buildTypes {
@@ -24,11 +34,9 @@ android {
                 enable = false
             }
         }
-        // Test builds: "Inlay Preview" installs next to the real Inlay as a separate app,
-        // with its own settings. The release build and its app ID are untouched.
+        // Cloud preview builds use the fork's application ID and the preview artwork.
         create("preview") {
             initWith(getByName("debug"))
-            applicationIdSuffix = ".preview"
             versionNameSuffix = "-preview"
             matchingFallbacks += listOf("debug")
         }
@@ -39,6 +47,7 @@ android {
         // and TourYourTurnTest switch it on)
         unitTests.all { it.systemProperty("inlay.checks.noTurns", "1"); it.systemProperty("inlay.checks.noSetup", "1") }
     }
+    testBuildType = "preview"
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

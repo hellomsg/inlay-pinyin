@@ -2193,11 +2193,11 @@ class SettingsActivity : Activity() {
         return if (current == mine.id) KeyboardState.READY else KeyboardState.OTHER
     }
     private fun keyboardCheckRow() = when (keyboardState()) {
-        KeyboardState.OFF -> ActionRow(this, "Keyboard doesn't show up?", "Inlay isn't turned on yet. Press {A} to turn it on") {
+        KeyboardState.OFF -> ActionRow(this, "Keyboard doesn't show up?", "${getString(R.string.app_name)} isn't turned on yet. Press {A} to turn it on") {
             startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)) }
-        KeyboardState.OTHER -> ActionRow(this, "Keyboard doesn't show up?", "Another keyboard is in use. Press {A} to pick Inlay") {
+        KeyboardState.OTHER -> ActionRow(this, "Keyboard doesn't show up?", "Another keyboard is in use. Press {A} to pick ${getString(R.string.ime_name)}") {
             getSystemService(InputMethodManager::class.java)?.showInputMethodPicker() }
-        KeyboardState.READY -> ActionRow(this, "Keyboard doesn't show up?", "Inlay is on and in use. If an app still hides it, check Android's keyboard settings") {
+        KeyboardState.READY -> ActionRow(this, "Keyboard doesn't show up?", "${getString(R.string.app_name)} is on and in use. If an app still hides it, check Android's keyboard settings") {
             startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)) }
     }
 
@@ -2206,7 +2206,7 @@ class SettingsActivity : Activity() {
 
     private fun aboutPage() = listOfNotNull(
         Section("Setup and help", listOfNotNull(
-            ActionRow(this, "Turn on Inlay", "Opens Android's list of keyboards") {
+            ActionRow(this, "Turn on ${getString(R.string.app_name)}", "Opens Android's list of keyboards") {
                 startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
             },
             ActionRow(this, "Switch keyboard", "Choose the keyboard to use now. Also: hold the settings key") {
@@ -2236,8 +2236,9 @@ class SettingsActivity : Activity() {
                 runCatching { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("$SOURCE_URL/blob/main/CHANGELOG.md"))) }
             }
         )),
-        Section("Inlay", listOfNotNull(
+        Section(getString(R.string.app_name), listOfNotNull(
             InfoRow(this, "Version", appVersion()),
+            InfoRow(this, "Based on Inlay", "Original Inlay by Emre (dakingeman). This fork adds offline Simplified Chinese Pinyin."),
             InfoRow(this, "Licence and credits", "Free and open source. Fonts: Atkinson Hyperlegible Next, Inter, M PLUS Rounded 1c and Press Start 2P (Open Font Licence). PlayStation drawing traced from \"Dualshock 4 Layout.svg\" by Tokyoship (CC BY 3.0). Full screen height after an idea from Odin KB. Controller names belong to their makers"),
             SOURCE_URL.takeIf { it.isNotEmpty() }?.let { url ->
                 ActionRow(this, "Source code", "See how it's made, report a problem or suggest an idea") {
@@ -2246,26 +2247,12 @@ class SettingsActivity : Activity() {
             },
         )),
         Section("Updates", listOf(
-            ActionRow(this, "Get updates automatically",
-                "Adds Inlay to Obtainium, a free app that installs new versions from GitHub") {
-                addToObtainium()
+            ActionRow(this, "Preview builds", "Download Inlay Pinyin builds from GitHub Actions") {
+                runCatching { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(PREVIEW_BUILDS_URL))) }
             }
         )),
         labSection()
     )
-
-    /**
-     * Opens Obtainium (or a fork that understands its links) with Inlay ready to add.
-     * Without it, opens the releases page so the update can still be downloaded by hand.
-     */
-    private fun addToObtainium() {
-        val add = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("obtainium://add/$SOURCE_URL"))
-        val opened = runCatching { startActivity(add) }.isSuccess
-        if (!opened) {
-            Toast.makeText(this, "Obtainium isn't installed, so here's the download page instead", Toast.LENGTH_LONG).show()
-            runCatching { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("$SOURCE_URL/releases"))) }
-        }
-    }
 
     /** The version number set in the app's build file, so it's only ever written in one place. */
     private fun appVersion(): String = runCatching {
@@ -2308,6 +2295,7 @@ class SettingsActivity : Activity() {
         const val FIND_GLIDE_MS = 420L      // the page's glide to a found row: calm enough to follow with the eye     // after the page and the keyboard have moved, before Find's row is brought into view       // a trigger sent as a button and an axis counts once (the keyboard uses the same)
         /** The project's web page (e.g. on GitHub). Leave empty to hide the "Source code" row. */
         const val SOURCE_URL = "https://github.com/dakingeman/inlay"
+        private const val PREVIEW_BUILDS_URL = "https://github.com/hellomsg/inlay/actions/workflows/build-preview.yml"
         val STICK_LABELS = listOf("Slowest", "Slow", "Medium", "Fast", "Fastest")
     }
 }
