@@ -21,7 +21,7 @@
 
 ## 创建发布草稿
 
-1. 在 `main` 上核对 `app/build.gradle.kts` 的 `versionName`、递增的 `versionCode` 和 `CHANGELOG.md`。首版对应标签 `v0.1.0`，版本号 `0.1.0`，`versionCode` 为 `7`。
+1. 在 `main` 上核对 `app/build.gradle.kts` 的 `versionName`、递增的 `versionCode` 和 `CHANGELOG.md`。首版对应标签 `v0.1.0`，版本号 `0.1.0`，`versionCode` 为 `7`。更新记录用 `## 0.1.0` 这样的纯版本标题，下一行起写发布内容。
 2. 等待同一提交的预览工作流通过。打开 [Draft Inlay Pinyin Release](https://github.com/hellomsg/inlay-pinyin/actions/workflows/draft-release.yml)，选 `main` 并填写匹配的标签。
 3. 工作流生成项目签名的 APK，验证包名、版本和签名，并创建 GitHub Release 草稿。草稿附 APK、SHA-256、签名证书指纹、GPL 许可证和对应源码提交地址。
 4. 在目标设备验证安装、启用输入法、手柄与触屏选词。复核发布说明、验证范围和预发行标识，再发布草稿。发布下一个版本时沿用同一包名和签名。
